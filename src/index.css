@@ -18,19 +18,32 @@
 }
 
 html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--color-canvas);
 }
 
 body {
-  min-width: 320px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
+  overflow-x: hidden;
+  overflow-x: clip;
   background:
-    radial-gradient(circle at 78% 4%, rgba(208, 224, 216, 0.58), transparent 30rem),
+    radial-gradient(
+      circle at 78% 4%,
+      rgba(208, 224, 216, 0.58),
+      transparent 30rem
+    ),
     var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
 
 button,
 input,
