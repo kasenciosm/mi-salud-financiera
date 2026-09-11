@@ -4,6 +4,19 @@ function raise(error) {
   if (error) throw new Error(error.message || "No se pudo completar la operación.");
 }
 
+// Supabase limita cada página; el saldo provisional necesita todos los registros.
+async function listRows(table, userId, orderColumn) {
+  const rows = [];
+  for (let start = 0; ; start += 1000) {
+    let query = supabase.from(table).select('*').eq('user_id', userId).order(orderColumn, { ascending: false });
+    if (orderColumn !== 'created_at') query = query.order('created_at', { ascending: false });
+    const result = await query.order('id', { ascending: false }).range(start, start + 999);
+    if (result.error) return result;
+    rows.push(...result.data);
+    if (result.data.length < 1000) return { data: rows, error: null };
+  }
+}
+
 const transactionFromDb = (row) => ({
   id: row.id,
   date: row.date,
@@ -113,12 +126,21 @@ export const authService = {
 };
 
 export const financeService = {
+  async listMonthlyReports(userId) {
+    const { data, error } = await supabase.from('monthly_reports').select('*')
+      .eq('user_id', userId).order('month', { ascending: false });
+    if (error?.code === 'PGRST205' || error?.code === '42P01') {
+      throw new Error('Los reportes mensuales todavía no están activados. Falta completar la actualización de la base de datos.');
+    }
+    raise(error);
+    return data;
+  },
   async listAll(userId) {
     const [transactions, debts, payments, statements] = await Promise.all([
-      supabase.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: false }),
-      supabase.from("debts").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-      supabase.from("debt_payments").select("*").eq("user_id", userId).order("payment_date", { ascending: false }),
-      supabase.from("investment_statements").select("*").eq("user_id", userId).order("statement_date", { ascending: false }),
+      listRows('transactions', userId, 'date'),
+      listRows('debts', userId, 'created_at'),
+      listRows('debt_payments', userId, 'payment_date'),
+      listRows('investment_statements', userId, 'statement_date'),
     ]);
     [transactions, debts, payments, statements].forEach((result) => raise(result.error));
     return {

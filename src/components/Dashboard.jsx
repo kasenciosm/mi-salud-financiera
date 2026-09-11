@@ -14,12 +14,15 @@ import {
 import { authService, financeService } from "../financeService.js";
 import { dismissLegacyImport, finishLegacyImport, loadLegacyTransactions } from "../storage.js";
 import RecordModal from "./RecordModal.jsx";
+import MonthlyReports from "./MonthlyReports.jsx";
+import { currentMonthInLima } from "../monthlyReports.js";
 
 const navItems = [
   { id: "summary", label: "Resumen", icon: "⌂" },
   { id: "transactions", label: "Movimientos", icon: "↕" },
   { id: "debts", label: "Deudas", icon: "◫" },
   { id: "investments", label: "Inversiones", icon: "◇" },
+  { id: "reports", label: "Reportes", icon: "▥" },
 ];
 
 const actionByView = {
@@ -27,11 +30,12 @@ const actionByView = {
   transactions: { label: "Nuevo movimiento", kind: "transaction" },
   debts: { label: "Nueva deuda", kind: "debt" },
   investments: { label: "Nuevo estado", kind: "statement" },
+  reports: { label: "Nuevo movimiento", kind: "transaction" },
 };
 
 export default function Dashboard({ user }) {
   const [view, setView] = useState("summary");
-  const [selectedMonth, setSelectedMonth] = useState(START_MONTH);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthInLima);
   const [data, setData] = useState(emptyFinanceData);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -51,6 +55,23 @@ export default function Dashboard({ user }) {
   }, [user.id]);
 
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Al volver a la app, actualizar datos y detectar el cambio de mes.
+  useEffect(() => {
+    let lastMonth = currentMonthInLima();
+    const checkMonth = () => {
+      const next = currentMonthInLima();
+      if (next !== lastMonth) {
+        const previousMonth = lastMonth;
+        setSelectedMonth(previous => previous === previousMonth ? next : previous);
+        lastMonth = next;
+        refresh();
+      }
+    };
+    const timer = window.setInterval(checkMonth, 30000);
+    window.addEventListener('focus', checkMonth);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', checkMonth); };
+  }, [refresh]);
 
   const summary = useMemo(() => calculateSummary(data, selectedMonth), [data, selectedMonth]);
   const title = navItems.find((item) => item.id === view)?.label || "Resumen";
@@ -154,7 +175,7 @@ export default function Dashboard({ user }) {
               <h1 className="truncate font-display text-2xl tracking-[-.03em] sm:text-3xl">{title}</h1>
             </div>
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-center">
-              <input className="block w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-forest sm:w-[190px] sm:flex-none" type="month" min={START_MONTH} value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value)} />
+              <input className="block w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-forest sm:w-[190px] sm:flex-none" type="month" min={START_MONTH} value={selectedMonth} onChange={(event) => { if (/^\d{4}-\d{2}$/.test(event.target.value)) setSelectedMonth(event.target.value); }} />
               <button className="shrink-0 whitespace-nowrap rounded-xl bg-forest px-3.5 py-2.5 text-xs font-bold text-white shadow-[0_7px_20px_rgba(23,62,52,.16)] sm:px-4" onClick={() => setModal({ kind: action.kind, record: null })}><span className="mr-1 text-base leading-none">＋</span><span className="hidden sm:inline">{action.label}</span><span className="sm:hidden">Añadir</span></button>
             </div>
           </div>
@@ -170,12 +191,13 @@ export default function Dashboard({ user }) {
               {view === "transactions" && <TransactionsView rows={data.transactions} onEdit={(record) => setModal({ kind: "transaction", record })} onDelete={(record) => removeRecord("transaction", record)} />}
               {view === "debts" && <DebtsView data={data} onEdit={(record) => setModal({ kind: "debt", record })} onPay={(debt) => setModal({ kind: "payment", debt })} onDelete={(record) => removeRecord("debt", record)} />}
               {view === "investments" && <InvestmentsView statements={data.statements} onEdit={(record) => setModal({ kind: "statement", record })} onDelete={(record) => removeRecord("statement", record)} onCreate={() => setModal({ kind: "statement", record: null })} />}
+              {view === "reports" && <MonthlyReports userId={user.id} data={data} selectedMonth={selectedMonth} onSelectMonth={setSelectedMonth} />}
             </>
           )}
         </div>
       </main>
 
-      <nav className="fixed inset-x-2 bottom-2 z-30 grid grid-cols-5 rounded-2xl border border-white/10 bg-forest p-1.5 text-white shadow-[0_20px_50px_rgba(12,42,34,.3)] lg:hidden">
+      <nav className="fixed inset-x-2 bottom-2 z-30 grid grid-cols-6 rounded-2xl border border-white/10 bg-forest p-1 text-white shadow-[0_20px_50px_rgba(12,42,34,.3)] lg:hidden">
         {navItems.map((item) => <button key={item.id} className={`min-w-0 rounded-xl px-0.5 py-2 text-center transition sm:px-1 ${view === item.id ? "bg-white/12" : "text-[#9eb6ad]"}`} onClick={() => setView(item.id)}><span className="block text-lg leading-none">{item.icon}</span><span className="mt-1 block truncate text-[8px] font-semibold min-[370px]:text-[9px]">{item.label}</span></button>)}
         <button className="min-w-0 rounded-xl px-0.5 py-2 text-center text-[#9eb6ad] transition hover:text-white sm:px-1" onClick={() => authService.signOut()}><span className="block text-lg leading-none">↪</span><span className="mt-1 block truncate text-[8px] font-semibold min-[370px]:text-[9px]">Salir</span></button>
       </nav>
