@@ -46,7 +46,7 @@ test("calcula deuda, inversión y patrimonio", () => {
 
 test("normaliza los datos editables de un movimiento", () => {
   const row = normalizeTransaction({ date: "2026-08-10", type: "expense", category: "  Comida ", description: "  Mercado ", amount: "40.50", currency: "PEN", exchangeRate: "1" });
-  assert.deepEqual(row, { date: "2026-08-10", type: "expense", category: "Comida", description: "Mercado", amount: 40.5, currency: "PEN", exchangeRate: 1 });
+  assert.deepEqual(row, { date: "2026-08-10", type: "expense", category: "Comida", description: "Mercado", merchant: "", paymentMethod: "", amount: 40.5, currency: "PEN", exchangeRate: 1 });
 });
 
 test("normaliza deudas y las marca pagadas con saldo cero", () => {

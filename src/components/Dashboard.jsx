@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   START_MONTH,
-  calculateSummary,
   emptyFinanceData,
-  expenseCategories,
   money,
   normalizeDebt,
   normalizePayment,
@@ -14,15 +12,20 @@ import {
 import { authService, financeService } from "../financeService.js";
 import { dismissLegacyImport, finishLegacyImport, loadLegacyTransactions } from "../storage.js";
 import RecordModal from "./RecordModal.jsx";
-import MonthlyReports from "./MonthlyReports.jsx";
+import ReportsView from './ReportsView.jsx';
+import Overview from './Overview.jsx';
+import Transactions from './Transactions.jsx';
+import Identity, { Icon } from './Identity.jsx';
+import EvolutionChart from './EvolutionChart.jsx';
+import useMonthlyReports from '../useMonthlyReports.js';
 import { currentMonthInLima } from "../monthlyReports.js";
 
 const navItems = [
-  { id: "summary", label: "Resumen", icon: "⌂" },
-  { id: "transactions", label: "Movimientos", icon: "↕" },
-  { id: "debts", label: "Deudas", icon: "◫" },
-  { id: "investments", label: "Inversiones", icon: "◇" },
-  { id: "reports", label: "Reportes", icon: "▥" },
+  { id: 'summary', label: 'Resumen', icon: 'house' },
+  { id: 'transactions', label: 'Movimientos', icon: 'movements' },
+  { id: 'reports', label: 'Evolución', icon: 'evolution' },
+  { id: 'debts', label: 'Deudas', icon: 'credit-card' },
+  { id: 'investments', label: 'Inversiones', icon: 'investments' },
 ];
 
 const actionByView = {
@@ -34,6 +37,10 @@ const actionByView = {
 };
 
 export default function Dashboard({ user }) {
+  const history = useMonthlyReports(user.id);
+  const [category, setCategory] = useState('');
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('finance-theme') || 'system'; } catch { return 'system'; } });
+  useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem('finance-theme',theme); } catch {} },[theme]);
   const [view, setView] = useState("summary");
   const [selectedMonth, setSelectedMonth] = useState(currentMonthInLima);
   const [data, setData] = useState(emptyFinanceData);
@@ -73,7 +80,6 @@ export default function Dashboard({ user }) {
     return () => { window.clearInterval(timer); window.removeEventListener('focus', checkMonth); };
   }, [refresh]);
 
-  const summary = useMemo(() => calculateSummary(data, selectedMonth), [data, selectedMonth]);
   const title = navItems.find((item) => item.id === view)?.label || "Resumen";
   const action = actionByView[view];
   const displayName = user.user_metadata?.full_name?.trim() || user.email?.split("@")[0] || "Usuario";
@@ -153,111 +159,24 @@ export default function Dashboard({ user }) {
     setLegacyRows([]);
   }
 
-  return (
-    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-transparent lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col bg-forest px-5 py-6 text-white lg:flex">
-        <Brand />
-        <nav className="mt-12 grid gap-1.5">
-          {navItems.map((item) => <NavButton key={item.id} item={item} active={view === item.id} onClick={() => setView(item.id)} />)}
-        </nav>
-        <div className="mt-auto border-t border-white/10 pt-5">
-          <div className="flex items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#31594f] font-display text-sm">{displayName.slice(0, 1).toUpperCase()}</span><div className="min-w-0"><p className="truncate text-xs font-semibold">{displayName}</p><p className="truncate text-[10px] text-[#98b1a8]">{user.email}</p></div></div>
-          <p className="mt-4 text-[10px] leading-4 text-[#87a299]">Información privada · Supabase</p>
-          <button className="mt-3 text-xs font-semibold text-[#bbcec7] transition hover:text-white" onClick={() => authService.signOut()}>Cerrar sesión</button>
-        </div>
-      </aside>
-
-      <main className="min-w-0 w-full max-w-full pb-28 lg:col-start-2 lg:pb-10">
-        <header className="sticky top-0 z-20 border-b border-line/90 bg-[#f2f5f3]/90 px-3 py-3 backdrop-blur-md sm:px-7 sm:py-4 lg:px-9">
-          <div className="mx-auto grid w-full max-w-[1320px] gap-3 sm:flex sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="hidden text-[10px] font-bold tracking-[.15em] text-green uppercase sm:block">Mi salud financiera</p>
-              <h1 className="truncate font-display text-2xl tracking-[-.03em] sm:text-3xl">{title}</h1>
-            </div>
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-center">
-              <input className="block w-full min-w-0 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-forest sm:w-[190px] sm:flex-none" type="month" min={START_MONTH} value={selectedMonth} onChange={(event) => { if (/^\d{4}-\d{2}$/.test(event.target.value)) setSelectedMonth(event.target.value); }} />
-              <button className="shrink-0 whitespace-nowrap rounded-xl bg-forest px-3.5 py-2.5 text-xs font-bold text-white shadow-[0_7px_20px_rgba(23,62,52,.16)] sm:px-4" onClick={() => setModal({ kind: action.kind, record: null })}><span className="mr-1 text-base leading-none">＋</span><span className="hidden sm:inline">{action.label}</span><span className="sm:hidden">Añadir</span></button>
-            </div>
-          </div>
-        </header>
-
-        <div className="mx-auto w-full min-w-0 max-w-[1320px] px-3 py-5 sm:px-7 sm:py-6 lg:px-9 lg:py-8">
-          {legacyRows.length > 0 && <LegacyBanner count={legacyRows.length} busy={busy} onImport={importLegacy} onDismiss={omitLegacy} />}
-          {message && <div className="mb-5 rounded-xl border border-[#cbded6] bg-white px-4 py-3 text-sm text-[#30594a] shadow-sm" role="status">{message}</div>}
-
-          {loading ? <LoadingDashboard /> : (
-            <>
-              {view === "summary" && <SummaryView data={data} summary={summary} selectedMonth={selectedMonth} onEdit={(record) => setModal({ kind: "transaction", record })} />}
-              {view === "transactions" && <TransactionsView rows={data.transactions} onEdit={(record) => setModal({ kind: "transaction", record })} onDelete={(record) => removeRecord("transaction", record)} />}
-              {view === "debts" && <DebtsView data={data} onEdit={(record) => setModal({ kind: "debt", record })} onPay={(debt) => setModal({ kind: "payment", debt })} onDelete={(record) => removeRecord("debt", record)} />}
-              {view === "investments" && <InvestmentsView statements={data.statements} onEdit={(record) => setModal({ kind: "statement", record })} onDelete={(record) => removeRecord("statement", record)} onCreate={() => setModal({ kind: "statement", record: null })} />}
-              {view === "reports" && <MonthlyReports userId={user.id} data={data} selectedMonth={selectedMonth} onSelectMonth={setSelectedMonth} />}
-            </>
-          )}
-        </div>
-      </main>
-
-      <nav className="fixed inset-x-2 bottom-2 z-30 grid grid-cols-6 rounded-2xl border border-white/10 bg-forest p-1 text-white shadow-[0_20px_50px_rgba(12,42,34,.3)] lg:hidden">
-        {navItems.map((item) => <button key={item.id} className={`min-w-0 rounded-xl px-0.5 py-2 text-center transition sm:px-1 ${view === item.id ? "bg-white/12" : "text-[#9eb6ad]"}`} onClick={() => setView(item.id)}><span className="block text-lg leading-none">{item.icon}</span><span className="mt-1 block truncate text-[8px] font-semibold min-[370px]:text-[9px]">{item.label}</span></button>)}
-        <button className="min-w-0 rounded-xl px-0.5 py-2 text-center text-[#9eb6ad] transition hover:text-white sm:px-1" onClick={() => authService.signOut()}><span className="block text-lg leading-none">↪</span><span className="mt-1 block truncate text-[8px] font-semibold min-[370px]:text-[9px]">Salir</span></button>
-      </nav>
-
-      {modal && <RecordModal key={`${modal.kind}-${modal.record?.id || modal.debt?.id || "new"}`} modal={modal} busy={busy} onClose={() => setModal(null)} onSave={saveRecord} />}
-    </div>
-  );
-}
-
-function SummaryView({ data, summary, selectedMonth, onEdit }) {
-  const categories = expenseCategories(data.transactions, selectedMonth);
-  const maxCategory = categories[0]?.[1] || 1;
-  const recent = data.transactions.slice(0, 5);
-  return (
-    <div className="grid min-w-0 gap-6">
-      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Patrimonio estimado" value={money(summary.netWorth)} meta="Balance + inversiones − deudas" tone="dark" />
-        <Metric label="Ingresos del mes" value={money(summary.income)} meta="Ingresos netos registrados" />
-        <Metric label="Egresos del mes" value={money(summary.expenses)} meta={`${summary.income ? (summary.expenses / summary.income * 100).toFixed(0) : 0}% de tus ingresos`} />
-        <Metric label="Flujo del mes" value={money(summary.cashFlow)} meta={`${summary.availableRate.toFixed(0)}% disponible`} tone={summary.cashFlow < 0 ? "danger" : "green"} />
-      </section>
-
-      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,.85fr)]">
-        <div className="min-w-0 rounded-3xl border border-line bg-white p-5 sm:p-7">
-          <SectionTitle eyebrow="Distribución mensual" title="¿En qué se va tu dinero?" />
-          <div className="mt-7 grid gap-4">
-            {categories.length ? categories.slice(0, 6).map(([category, amount]) => <div className="min-w-0" key={category}><div className="mb-2 flex min-w-0 justify-between gap-3 text-xs"><span className="min-w-0 truncate font-semibold">{category}</span><span className="shrink-0 text-muted">{money(amount)}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#edf1ef]"><div className="h-full rounded-full bg-green" style={{ width: `${Math.max(5, amount / maxCategory * 100)}%` }} /></div></div>) : <Empty compact text="Registra un egreso para ver la distribución por categorías." />}
-          </div>
-        </div>
-        <div className="min-w-0 rounded-3xl bg-forest p-5 text-white sm:p-7">
-          <p className="text-[10px] font-bold tracking-[.15em] text-[#8eb5a6] uppercase">Indicador general</p>
-          <div className="mt-6 flex items-end justify-between"><strong className="font-display text-6xl font-medium">{summary.score}</strong><span className="mb-2 text-xs text-[#a8c0b7]">de 100</span></div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#76b89e]" style={{ width: `${summary.score}%` }} /></div>
-          <p className="mt-5 text-sm leading-6 text-[#b9cec6]">Combina tu flujo disponible y la carga mensual de deuda. Mejora al aumentar ingresos, reducir gastos o bajar cuotas.</p>
-          <div className="mt-7 grid grid-cols-2 gap-3 border-t border-white/10 pt-5"><SmallStat label="Deuda pendiente" value={money(summary.debt)} /><SmallStat label="Inversiones" value={money(summary.investments)} /></div>
-        </div>
-      </section>
-
-      <section className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-line bg-white p-4 sm:p-7">
-        <SectionTitle eyebrow="Actividad" title="Movimientos recientes" />
-        <div className="mt-5 min-w-0 max-w-full"><TransactionTable rows={recent} onEdit={onEdit} condensed /></div>
-      </section>
-    </div>
-  );
-}
-
-function TransactionsView({ rows, onEdit, onDelete }) {
-  return <section className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-line bg-white p-4 sm:p-7"><SectionTitle eyebrow={`${rows.length} registros`} title="Ingresos y egresos" subtitle="Puedes editar o eliminar cualquier movimiento manual después de guardarlo." /><div className="mt-6 min-w-0 max-w-full"><TransactionTable rows={rows} onEdit={onEdit} onDelete={onDelete} /></div></section>;
-}
-
-function TransactionTable({ rows, onEdit, onDelete, condensed = false }) {
-  if (!rows.length) return <Empty text="Aún no hay movimientos. Usa “Nuevo movimiento” para comenzar." />;
-  return (
-    <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
-      <table className="w-full min-w-[690px] border-collapse text-left">
-        <thead><tr className="border-b border-line text-[10px] font-bold tracking-[.1em] text-muted uppercase"><th className="pb-3">Fecha</th><th className="pb-3">Detalle</th><th className="pb-3">Categoría</th><th className="pb-3 text-right">Monto</th><th className="pb-3 text-right">Acciones</th></tr></thead>
-        <tbody>{rows.map((row) => { const automatic = row.source === "debt_payment"; return <tr key={row.id} className="border-b border-line/70 last:border-0"><td className="py-4 pr-4 text-xs text-muted">{shortDate(row.date)}</td><td className="py-4 pr-4"><div className="text-sm font-semibold">{row.description || (row.type === "income" ? "Ingreso" : "Egreso")}</div>{automatic && <span className="mt-1 inline-block rounded-full bg-[#edf4f1] px-2 py-1 text-[9px] font-bold text-green">PAGO AUTOMÁTICO</span>}</td><td className="py-4 pr-4 text-xs text-muted">{row.category}</td><td className={`py-4 text-right text-sm font-bold ${row.type === "income" ? "text-green" : "text-danger"}`}>{row.type === "income" ? "+" : "−"}{money(row.amount, row.currency)}</td><td className="py-4 pl-4 text-right">{automatic ? <span className="text-[10px] text-muted">Gestionar en Deudas</span> : <div className="flex justify-end gap-1"><ActionButton label="Editar" onClick={() => onEdit?.(row)}>Editar</ActionButton>{!condensed && <ActionButton label="Eliminar" danger onClick={() => onDelete?.(row)}>Eliminar</ActionButton>}</div>}</td></tr>; })}</tbody>
-      </table>
-    </div>
-  );
+  function navigate(next) { setView(next); setCategory(''); window.scrollTo({top:0}); }
+  function openReport(month) { setSelectedMonth(month); setView('reports'); window.scrollTo({top:0}); }
+  return <div className="app-shell">
+    <aside className="app-sidebar"><Brand/><nav aria-label="Navegación principal">{navItems.map(item=><button key={item.id} className={view===item.id?'active':''} aria-current={view===item.id?'page':undefined} onClick={()=>navigate(item.id)}><Icon name={item.icon}/>{item.label}</button>)}</nav><div className="account-block"><div className="avatar">{displayName.slice(0,1).toUpperCase()}</div><div><strong>{displayName}</strong><small>{user.email}</small></div><button className="icon-button" aria-label="Cerrar sesión" onClick={()=>authService.signOut()}><Icon name="logout"/></button></div></aside>
+    <main className="app-main"><header className="app-header"><span className="app-breadcrumb">Mi salud financiera <span>/ {title}</span></span><div className="header-actions"><button className="icon-button" aria-label={`Tema: ${theme==='system'?'automático':theme==='light'?'claro':'oscuro'}. Cambiar tema`} onClick={()=>setTheme(theme==='system'?'light':theme==='light'?'dark':'system')}><Icon name="theme"/></button><button className="icon-button mobile-signout" aria-label="Cerrar sesión" onClick={()=>authService.signOut()}><Icon name="logout"/></button><label className="month-picker"><span className="sr-only">Mes seleccionado</span><input type="month" min={START_MONTH} value={selectedMonth} onChange={event=>{if(/^\d{4}-\d{2}$/.test(event.target.value))setSelectedMonth(event.target.value)}}/></label><button className="primary-button" onClick={()=>setModal({kind:action.kind,record:null})}><Icon name="plus" size={17}/><span>{view==='summary'||view==='transactions'||view==='reports'?'Registrar':action.label}</span></button></div></header>
+      <div className="app-content">{legacyRows.length>0&&<LegacyBanner count={legacyRows.length} busy={busy} onImport={importLegacy} onDismiss={omitLegacy}/>}{message&&<div className="notice" role="status">{message}</div>}
+        {loading?<LoadingDashboard/>:<>
+          {view==='summary'&&<Overview data={data} history={history} selectedMonth={selectedMonth} onSelectMonth={openReport} onCategory={name=>{setCategory(name);setView('transactions')}} onTransactions={()=>navigate('transactions')} onEdit={record=>setModal({kind:'transaction',record})}/>}
+          {view==='transactions'&&<Transactions rows={data.transactions} selectedMonth={selectedMonth} category={category} onCategory={setCategory} onEdit={record=>setModal({kind:'transaction',record})} onDelete={record=>removeRecord('transaction',record)}/>}
+          {view==='debts'&&<><div className="page-intro"><h1>Un paso más cerca.</h1><p>Tu deuda pendiente y el avance de cada pago.</p></div><DebtsView data={data} onEdit={record=>setModal({kind:'debt',record})} onPay={debt=>setModal({kind:'payment',debt})} onDelete={record=>removeRecord('debt',record)}/></>}
+          {view==='investments'&&<><div className="page-intro"><h1>Lo que haces crecer.</h1><p>Tus inversiones y estados de cuenta, en perspectiva.</p></div><EvolutionChart {...history} initialMetric="investments" title="Evolución de tus inversiones" onSelectMonth={openReport}/><div className="mt-6"><InvestmentsView statements={data.statements} onEdit={record=>setModal({kind:'statement',record})} onDelete={record=>removeRecord('statement',record)} onCreate={()=>setModal({kind:'statement',record:null})}/></div></>}
+          {view==='reports'&&<ReportsView data={data} selectedMonth={selectedMonth} onSelectMonth={setSelectedMonth} history={history}/>}
+        </>}
+      </div>
+    </main>
+    <nav className="mobile-nav" aria-label="Navegación móvil">{navItems.map(item=><button key={item.id} className={view===item.id?'active':''} aria-current={view===item.id?'page':undefined} onClick={()=>navigate(item.id)}><Icon name={item.icon}/><span>{item.label}</span></button>)}</nav>
+    {modal&&<RecordModal key={`${modal.kind}-${modal.record?.id||modal.debt?.id||'new'}`} modal={modal} busy={busy} onClose={()=>setModal(null)} onSave={saveRecord}/>}
+  </div>;
 }
 
 function DebtsView({ data, onEdit, onPay, onDelete }) {
@@ -275,21 +194,21 @@ function DebtsView({ data, onEdit, onPay, onDelete }) {
             <article key={debt.id} className="min-w-0 rounded-3xl border border-line bg-white p-5 sm:p-6">
               <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <span className={`inline-block rounded-full px-2.5 py-1 text-[9px] font-bold uppercase ${debt.status === "paid" ? "bg-[#dcece5] text-green" : "bg-[#f4ede5] text-[#87653f]"}`}>
+                  <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold uppercase ${debt.status === "paid" ? "bg-[var(--surface-subtle)] text-green" : "bg-[var(--surface-subtle)] text-muted"}`}>
                     {debt.status === "paid" ? "Pagada" : "Activa"}
                   </span>
-                  <h2 className="mt-3 break-words font-display text-2xl">{debt.creditor}</h2>
+                  <h2 className="mt-3 flex items-center gap-3 break-words font-display text-2xl"><Identity name={debt.creditor}/>{debt.creditor}</h2>
                 </div>
                 <strong className="break-words font-display text-2xl text-forest sm:max-w-[50%] sm:text-right">
                   {money(debt.outstandingAmount, debt.currency)}
                 </strong>
               </div>
 
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#edf1ef]">
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-[var(--surface-subtle)]">
                 <div className="h-full rounded-full bg-green" style={{ width: `${progress}%` }} />
               </div>
 
-              <div className="mt-2 flex flex-wrap justify-between gap-2 text-[10px] text-muted">
+              <div className="mt-2 flex flex-wrap justify-between gap-2 text-[11px] text-muted">
                 <span>{progress.toFixed(0)}% pagado</span>
                 <span>Original: {money(debt.originalAmount, debt.currency)}</span>
               </div>
@@ -330,7 +249,7 @@ function DebtsView({ data, onEdit, onPay, onDelete }) {
                   <div key={payment.id} className="flex min-w-0 flex-col items-start gap-2 rounded-xl border border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="break-words text-sm font-semibold">{debt?.creditor || "Deuda eliminada"}</p>
-                      <p className="mt-1 break-words text-[10px] text-muted">
+                      <p className="mt-1 break-words text-[11px] text-muted">
                         {shortDate(payment.paymentDate)}{payment.notes ? ` · ${payment.notes}` : ""}
                       </p>
                     </div>
@@ -370,7 +289,7 @@ function InvestmentsView({ statements, onEdit, onDelete, onCreate }) {
             <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
               <table className="w-full min-w-[760px] text-left">
                 <thead>
-                  <tr className="border-b border-line text-[10px] font-bold tracking-[.1em] text-muted uppercase">
+                  <tr className="border-b border-line text-[11px] font-bold tracking-[.1em] text-muted uppercase">
                     <th className="pb-3">Fecha</th>
                     <th className="pb-3">Institución</th>
                     <th className="pb-3 text-right">Aportes</th>
@@ -409,7 +328,7 @@ function InvestmentsView({ statements, onEdit, onDelete, onCreate }) {
 
 function Metric({ label, value, meta, tone }) {
   const tones = {
-    dark: "bg-forest text-white border-forest",
+    dark: "stat-hero text-ink border-line",
     danger: "bg-white text-danger border-line",
     green: "bg-white text-green border-line",
   };
@@ -421,8 +340,8 @@ function Metric({ label, value, meta, tone }) {
       }`}
     >
       <p
-        className={`text-[10px] font-bold tracking-[.12em] uppercase ${
-          tone === "dark" ? "text-[#9db8ae]" : "text-muted"
+        className={`text-[11px] font-bold tracking-[.12em] uppercase ${
+          "text-muted"
         }`}
       >
         {label}
@@ -433,8 +352,8 @@ function Metric({ label, value, meta, tone }) {
       </strong>
 
       <p
-        className={`mt-3 break-words text-[10px] ${
-          tone === "dark" ? "text-[#a8c0b7]" : "text-muted"
+        className={`mt-3 break-words text-[11px] ${
+          "text-muted"
         }`}
       >
         {meta}
@@ -444,31 +363,25 @@ function Metric({ label, value, meta, tone }) {
 }
 
 function SectionTitle({ eyebrow, title, subtitle }) {
-  return <div className="min-w-0"><p className="break-words text-[10px] font-bold tracking-[.15em] text-green uppercase">{eyebrow}</p><h2 className="mt-1 break-words font-display text-2xl tracking-[-.02em]">{title}</h2>{subtitle && <p className="mt-2 max-w-2xl break-words text-xs leading-5 text-muted">{subtitle}</p>}</div>;
+  return <div className="min-w-0"><p className="break-words text-[11px] font-bold tracking-[.15em] text-green uppercase">{eyebrow}</p><h2 className="mt-1 break-words font-display text-2xl tracking-[-.02em]">{title}</h2>{subtitle && <p className="mt-2 max-w-2xl break-words text-xs leading-5 text-muted">{subtitle}</p>}</div>;
 }
 
 function SmallStat({ label, value, dark = false }) {
-  return <div className="min-w-0"><p className={`break-words text-[9px] font-bold tracking-[.08em] uppercase ${dark ? "text-muted" : "text-[#91ada2]"}`}>{label}</p><p className={`mt-1 break-words text-xs font-bold ${dark ? "text-forest" : "text-white"}`}>{value}</p></div>;
+  return <div className="min-w-0"><p className={`break-words text-[11px] font-bold tracking-[.08em] uppercase ${dark ? "text-muted" : "text-muted"}`}>{label}</p><p className={`mt-1 break-words text-xs font-bold ${dark ? "text-forest" : "text-white"}`}>{value}</p></div>;
 }
 
 function Empty({ text, compact = false, action, onAction }) {
-  return <div className={`min-w-0 rounded-2xl border border-dashed border-[#cfd9d4] bg-[#f8faf9] text-center ${compact ? "p-5 sm:p-6" : "p-6 sm:p-10"}`}><p className="break-words text-sm leading-6 text-muted">{text}</p>{action && <button className="mt-4 max-w-full rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white" onClick={onAction}>{action}</button>}</div>;
+  return <div className={`min-w-0 rounded-2xl border border-dashed border-line bg-[var(--surface-subtle)] text-center ${compact ? "p-5 sm:p-6" : "p-6 sm:p-10"}`}><p className="break-words text-sm leading-6 text-muted">{text}</p>{action && <button className="mt-4 max-w-full rounded-xl bg-forest px-4 py-2.5 text-xs font-bold text-white" onClick={onAction}>{action}</button>}</div>;
 }
 
 function ActionButton({ children, danger = false, onClick, label }) {
-  return <button type="button" aria-label={label} className={`rounded-lg px-2.5 py-2 text-[10px] font-bold transition ${danger ? "text-danger hover:bg-[#f8efed]" : "text-green hover:bg-[#edf4f1]"}`} onClick={onClick}>{children}</button>;
+  return <button type="button" aria-label={label} className={`rounded-lg px-2.5 py-2 text-[11px] font-bold transition ${danger ? "text-danger hover:bg-[var(--surface-subtle)]" : "text-green hover:bg-[var(--surface-subtle)]"}`} onClick={onClick}>{children}</button>;
 }
 
-function NavButton({ item, active, onClick }) {
-  return <button className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-semibold transition ${active ? "bg-white/10 text-white" : "text-[#a8c0b7] hover:bg-white/5 hover:text-white"}`} onClick={onClick}><span className="grid size-6 shrink-0 place-items-center text-lg leading-none">{item.icon}</span><span className="truncate">{item.label}</span></button>;
-}
-
-function Brand() {
-  return <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-xl bg-white/90 font-display text-xl text-forest">K</span><div><strong className="font-display text-xl font-medium">Finanzas</strong><small className="block text-[10px] tracking-[.12em] text-[#a9c1b7] uppercase">Panel personal</small></div></div>;
-}
+function Brand() { return <div className="app-brand"><span><Icon name="wallet" size={23}/></span><strong>Mis finanzas</strong></div>; }
 
 function LegacyBanner({ count, busy, onImport, onDismiss }) {
-  return <section className="mb-5 flex min-w-0 flex-col gap-4 rounded-2xl border border-[#c9ded5] bg-[#eaf4ef] p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="break-words text-sm font-bold text-forest">Encontramos {count} movimientos de la versión local.</p><p className="mt-1 break-words text-xs leading-5 text-[#58746a]">Impórtalos una sola vez a esta cuenta o descarta el aviso.</p></div><div className="grid shrink-0 grid-cols-2 gap-2"><button className="rounded-xl px-3 py-2 text-xs font-bold text-muted" onClick={onDismiss} disabled={busy}>Omitir</button><button className="rounded-xl bg-forest px-3 py-2 text-xs font-bold text-white" onClick={onImport} disabled={busy}>Importar ahora</button></div></section>;
+  return <section className="mb-5 flex min-w-0 flex-col gap-4 rounded-2xl border border-line bg-[var(--surface-subtle)] p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="break-words text-sm font-bold text-forest">Encontramos {count} movimientos de la versión local.</p><p className="mt-1 break-words text-xs leading-5 text-muted">Impórtalos una sola vez a esta cuenta o descarta el aviso.</p></div><div className="grid shrink-0 grid-cols-2 gap-2"><button className="rounded-xl px-3 py-2 text-xs font-bold text-muted" onClick={onDismiss} disabled={busy}>Omitir</button><button className="rounded-xl bg-forest px-3 py-2 text-xs font-bold text-white" onClick={onImport} disabled={busy}>Importar ahora</button></div></section>;
 }
 
 function LoadingDashboard() {

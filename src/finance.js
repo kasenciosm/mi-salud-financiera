@@ -121,6 +121,8 @@ export function normalizeTransaction(form) {
     type: form.type === "expense" ? "expense" : "income",
     category: text(form.category),
     description: text(form.description),
+    merchant: text(form.merchant),
+    paymentMethod: text(form.paymentMethod),
     amount,
     currency: currency(form.currency),
     exchangeRate: Math.max(number(form.exchangeRate, 1), 0.0001),

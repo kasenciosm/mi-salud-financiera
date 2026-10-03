@@ -18,6 +18,12 @@ create table cron.job(name text primary key, schedule text, command text);
 create function cron.schedule(text,text,text) returns bigint language sql as $$insert into cron.job values($1,$2,$3) on conflict(name) do update set schedule=$2,command=$3 returning 1::bigint$$;
 `);
 await db.exec(await fs.readFile(new URL('supabase/schema.sql', root), 'utf8'));
+// También debe funcionar sobre una instalación anterior, sin cambiar filas ni RLS.
+await db.exec('alter table public.transactions drop column merchant; alter table public.transactions drop column payment_method;');
+const identityMigration = await fs.readFile(new URL('supabase/transaction-identity.sql', root), 'utf8');
+await db.exec(identityMigration);
+await db.exec(identityMigration);
+assert.equal((await db.query("select relrowsecurity from pg_class where oid='public.transactions'::regclass")).rows[0].relrowsecurity,true);
 const u='11111111-1111-1111-1111-111111111111', v='22222222-2222-2222-2222-222222222222';
 const d='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 await db.exec(`
@@ -38,6 +44,7 @@ const migration = (await fs.readFile(new URL('supabase/monthly-reports.sql', roo
   .replace('create extension if not exists pg_cron;', '-- pg_cron scheduler mocked; real SQL functions execute in Postgres.');
 await db.exec(migration);
 const query = async sql => (await db.query(sql)).rows;
+assert.equal((await query("select merchant, payment_method from public.transactions limit 1"))[0].merchant,'');
 const check = async (name, fn) => { await fn(); console.log(`PASS ${name}`); };
 await check('No cierra agosto antes de medianoche en Lima',async()=>{
   await db.exec("update test_clock.time set value='2026-09-01T04:59:59Z'; select finance_private.close_months();");

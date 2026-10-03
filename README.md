@@ -4,6 +4,26 @@ Panel financiero personal construido con **React, Vite y Tailwind CSS**. Usa **S
 
 ## Funciones incluidas
 
+- Interfaz de tarjetas, colores suaves y modos claro, oscuro y automático.
+- Iconos por categoría e identificadores locales de bancos, comercios y transporte peruanos.
+- Comercio y medio de pago independientes de la categoría y descripción.
+- Evolución de patrimonio, ingresos/gastos, deuda, saldo e inversiones en 6 o 12 meses.
+- Cierres mensuales conservados; los meses sin datos no se muestran como cero.
+
+### Actualizar una instalación existente (octubre de 2026)
+
+Antes de publicar esta versión, ejecutar `supabase/transaction-identity.sql` en el
+proyecto Supabase existente. Añade `merchant` y `payment_method` a `transactions`
+sin modificar importes, cierres, políticas RLS ni el trabajo de cierre automático.
+No volver a crear el proyecto ni reemplazar sus datos. Después ejecutar `npm ci`
+y `npm run check`, y desplegar el frontend. Las variables de Vercel no cambian.
+
+Los identificadores de comercios se resuelven localmente y no consultan servicios
+externos. Son distintivos tipográficos, no una descarga de logotipos oficiales.
+Las categorías personalizadas siguen disponibles y usan un icono genérico.
+Los registros antiguos se muestran sin medio de pago hasta que se especifique;
+la app no intenta deducirlo del comercio.
+
 - Registro, confirmación de correo, inicio y cierre de sesión.
 - Datos aislados por usuario mediante Row Level Security (RLS).
 - Crear, editar y eliminar ingresos y egresos.

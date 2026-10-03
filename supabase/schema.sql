@@ -8,6 +8,8 @@ create table if not exists public.transactions (
   type text not null check (type in ('income', 'expense')),
   category text not null,
   description text not null default '',
+  merchant text not null default '',
+  payment_method text not null default '',
   amount numeric(14,2) not null check (amount > 0),
   currency text not null default 'PEN' check (currency in ('PEN', 'USD')),
   exchange_rate numeric(10,4) not null default 1 check (exchange_rate > 0),

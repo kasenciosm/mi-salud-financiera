@@ -23,6 +23,8 @@ const transactionFromDb = (row) => ({
   type: row.type,
   category: row.category,
   description: row.description,
+  merchant: row.merchant || "",
+  paymentMethod: row.payment_method || "",
   amount: Number(row.amount),
   currency: row.currency,
   exchangeRate: Number(row.exchange_rate),
@@ -70,6 +72,8 @@ function transactionToDb(row) {
     amount: row.amount,
     currency: row.currency,
     exchange_rate: row.exchangeRate,
+    ...(row.merchant !== undefined ? { merchant: row.merchant } : {}),
+    ...(row.paymentMethod !== undefined ? { payment_method: row.paymentMethod } : {}),
   };
 }
 
