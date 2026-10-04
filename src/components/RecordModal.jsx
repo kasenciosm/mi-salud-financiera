@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_EXCHANGE_RATE, money, todayInLima } from "../finance.js";
+import { DEFAULT_EXCHANGE_RATE, calculateInstallment, money, todayInLima } from "../finance.js";
 import { categories, merchants, paymentMethods, merchantIdentity } from '../catalog.js';
 import Identity from './Identity.jsx';
 
@@ -110,14 +110,30 @@ function TransactionFields({ record = {} }) {
 }
 
 function DebtFields({ record = {} }) {
+  const [debtType, setDebtType] = useState(record.debtType || "other");
+  const [creditor, setCreditor] = useState(record.creditor || "");
+  const [principal, setPrincipal] = useState(String(record.originalAmount ?? ""));
+  const [balance, setBalance] = useState(String(record.outstandingAmount ?? record.originalAmount ?? ""));
+  const [rate, setRate] = useState(String(record.annualRate ?? ""));
+  const [count, setCount] = useState(String(record.installmentCount || 12));
+  const calculatedPayment = calculateInstallment(principal, rate, count);
+  const cards = ["Diners Club", "BCP", "Interbank", "BBVA", "Scotiabank", "BanBif", "Falabella"];
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field label="Acreedor"><input className={inputClass} name="creditor" defaultValue={record.creditor || ""} placeholder="Banco, persona o entidad" required /></Field>
+      <Field label="Tipo de deuda"><select className={inputClass} name="debtType" value={debtType} onChange={event => setDebtType(event.target.value)}><option value="other">Préstamo u otra deuda</option><option value="credit_card">Tarjeta de crédito</option></select></Field>
+      <Field label={debtType === "credit_card" ? "Banco / tarjeta" : "Acreedor"}><input className={inputClass} name="creditor" list={debtType === "credit_card" ? "finance-card-issuers" : undefined} value={creditor} onChange={event => setCreditor(event.target.value)} placeholder={debtType === "credit_card" ? "Diners Club, BCP…" : "Banco, persona o entidad"} required />{debtType === "credit_card" && <datalist id="finance-card-issuers">{cards.map(card => <option key={card} value={card} />)}</datalist>}</Field>
       <Field label="Moneda"><select className={inputClass} name="currency" defaultValue={record.currency || "PEN"}><option value="PEN">Soles (PEN)</option><option value="USD">Dólares (USD)</option></select></Field>
-      <Field label="Monto original"><input className={inputClass} name="originalAmount" type="number" min="0.01" step="0.01" defaultValue={record.originalAmount ?? ""} required /></Field>
-      <Field label="Saldo pendiente"><input className={inputClass} name="outstandingAmount" type="number" min="0" step="0.01" defaultValue={record.outstandingAmount ?? record.originalAmount ?? ""} required /></Field>
-      <Field label="Cuota mensual"><input className={inputClass} name="monthlyPayment" type="number" min="0" step="0.01" defaultValue={record.monthlyPayment ?? ""} /></Field>
-      <Field label="Tasa anual (%)"><input className={inputClass} name="annualRate" type="number" min="0" step="0.01" defaultValue={record.annualRate ?? ""} /></Field>
+      <Field label="Monto original"><input className={inputClass} name="originalAmount" type="number" min="0.01" step="0.01" value={principal} onChange={event => { if (!balance || balance === principal) setBalance(event.target.value); setPrincipal(event.target.value); }} required /></Field>
+      <Field label="Saldo pendiente"><input className={inputClass} name="outstandingAmount" type="number" min="0" step="0.01" value={balance} onChange={event => setBalance(event.target.value)} required /></Field>
+      {debtType === "credit_card" ? <>
+        <Field label="Número de cuotas"><input className={inputClass} name="installmentCount" type="number" min="1" max="120" step="1" value={count} onChange={event => setCount(event.target.value)} required /><input type="hidden" name="installmentsPaid" value={record.installmentsPaid ?? 0} /></Field>
+        <Field label="Interés anual (%)" hint="Ingresa la tasa anual que aparece en el estado de cuenta de la tarjeta."><input className={inputClass} name="annualRate" type="number" min="0" max="999" step="0.01" value={rate} onChange={event => setRate(event.target.value)} /></Field>
+        <Field label="Cuota estimada"><input className={inputClass} name="monthlyPayment" type="number" value={calculatedPayment} readOnly aria-readonly="true" /><span className="font-normal leading-5 text-muted">Estimación con tasa anual y cuotas indicadas. Cada pago descuenta primero el interés del periodo y luego el capital.</span></Field>
+      </> : <>
+        <input type="hidden" name="installmentCount" value="0" /><input type="hidden" name="installmentsPaid" value="0" />
+        <Field label="Cuota mensual"><input className={inputClass} name="monthlyPayment" type="number" min="0" step="0.01" defaultValue={record.monthlyPayment ?? ""} /></Field>
+        <Field label="Tasa anual (%)"><input className={inputClass} name="annualRate" type="number" min="0" step="0.01" defaultValue={record.annualRate ?? ""} /></Field>
+      </>}
       <Field label="Día de pago" hint="Un número del 1 al 31."><input className={inputClass} name="dueDay" type="number" min="1" max="31" step="1" defaultValue={record.dueDay ?? ""} /></Field>
     </div>
   );
@@ -139,6 +155,8 @@ function StatementFields({ record = {} }) {
 }
 
 function PaymentFields({ debt }) {
+  const finalAmount = debt.outstandingAmount + Math.round(debt.outstandingAmount * debt.annualRate / 1200 * 100) / 100;
+  const minimumAmount = debt.debtType === "credit_card" ? Math.min(debt.monthlyPayment || finalAmount, finalAmount) : 0.01;
   return (
     <div className="grid gap-4">
       <div className="rounded-2xl bg-[var(--surface-subtle)] p-4">
@@ -147,10 +165,10 @@ function PaymentFields({ debt }) {
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Fecha del pago"><input className={inputClass} name="paymentDate" type="date" min="2026-08-01" defaultValue={todayInLima()} required /></Field>
-        <Field label={`Monto (${debt.currency})`}><input className={inputClass} name="amount" type="number" min="0.01" step="0.01" defaultValue={debt.monthlyPayment || ""} required /></Field>
+        <Field label={`Monto (${debt.currency})`}><input className={inputClass} name="amount" type="number" min={minimumAmount} step="0.01" defaultValue={debt.monthlyPayment || ""} required /></Field>
       </div>
       <Field label="Notas"><input className={inputClass} name="notes" placeholder="Número de operación u observación" /></Field>
-      <p className="rounded-xl border border-line bg-[var(--surface-subtle)] px-4 py-3 text-xs leading-5 text-muted">Este pago también crea automáticamente un egreso en la categoría “Pago de deuda” y actualiza el saldo pendiente.</p>
+      <p className="rounded-xl border border-line bg-[var(--surface-subtle)] px-4 py-3 text-xs leading-5 text-muted">{debt.debtType === "credit_card" ? `Se registra el interés del periodo (${money(finalAmount - debt.outstandingAmount, debt.currency)}) y el resto reduce el capital. Una cuota estimada es ${money(debt.monthlyPayment, debt.currency)}.` : "Este pago reduce el saldo pendiente."} También crea un egreso en “Pago de deuda”.</p>
     </div>
   );
 }

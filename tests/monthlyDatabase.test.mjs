@@ -19,26 +19,43 @@ create function cron.schedule(text,text,text) returns bigint language sql as $$i
 `);
 await db.exec(await fs.readFile(new URL('supabase/schema.sql', root), 'utf8'));
 // También debe funcionar sobre una instalación anterior, sin cambiar filas ni RLS.
-await db.exec('alter table public.transactions drop column merchant; alter table public.transactions drop column payment_method;');
+await db.exec(`alter table public.transactions drop column merchant; alter table public.transactions drop column payment_method;
+alter table public.debts drop column debt_type; alter table public.debts drop column installment_count; alter table public.debts drop column installments_paid;
+alter table public.debt_payments drop column principal_paid; alter table public.debt_payments drop column interest_paid;`);
 const identityMigration = await fs.readFile(new URL('supabase/transaction-identity.sql', root), 'utf8');
 await db.exec(identityMigration);
 await db.exec(identityMigration);
+const debtMigration = await fs.readFile(new URL('supabase/tarjetas-cuotas.sql', root), 'utf8');
+await db.exec(debtMigration);
+await db.exec(debtMigration);
 assert.equal((await db.query("select relrowsecurity from pg_class where oid='public.transactions'::regclass")).rows[0].relrowsecurity,true);
-const u='11111111-1111-1111-1111-111111111111', v='22222222-2222-2222-2222-222222222222';
+const u='11111111-1111-1111-1111-111111111111', v='22222222-2222-2222-2222-222222222222', w='44444444-4444-4444-4444-444444444444';
 const d='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 await db.exec(`
-insert into auth.users values('${u}','2026-08-01'),('${v}','2026-08-01');
+insert into auth.users values('${u}','2026-08-01'),('${v}','2026-08-01'),('${w}','2026-08-01');
 insert into public.transactions(user_id,date,type,category,amount,currency,exchange_rate) values
 ('${u}','2026-08-05','income','Sueldo',1000,'PEN',1),
 ('${u}','2026-08-06','expense','Comida',1200,'PEN',1),
 ('${u}','2026-08-07','income','Venta USD',100,'USD',3.8),
 ('${u}','2026-09-10','income','Futuro',9999,'PEN',1),
 ('${v}','2026-08-01','income','Privado',777,'PEN',1);
+insert into public.debts(id,user_id,creditor,original_amount,outstanding_amount,monthly_payment,annual_rate,debt_type,installment_count,currency)
+values('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','${w}','Diners Club',12000,12000,1066.19,12,'credit_card',12,'PEN');
 insert into public.debts(id,user_id,creditor,original_amount,outstanding_amount,monthly_payment,currency) values
 ('${d}','${u}','Banco',2000,1000,100,'USD');
 insert into public.investment_statements(user_id,statement_date,market_value,cash_balance) values
 ('${u}','2026-08-20',1000,100),('${u}','2026-09-10',99999,0);
 `);
+await db.exec(`set role authenticated; set test.uid='${w}';`);
+await assert.rejects(db.exec("select public.register_debt_payment('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',100,'2026-08-05','pago parcial')"), /ingresa al menos/);
+await db.exec("select public.register_debt_payment('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',1066.19,'2026-08-05','cuota 1'); reset role;");
+const [cardBalance] = (await db.query("select outstanding_amount, installments_paid, status from public.debts where creditor='Diners Club'")).rows;
+assert.equal(Number(cardBalance.outstanding_amount),11053.81);
+assert.equal(cardBalance.installments_paid,1);
+assert.equal(cardBalance.status,'active');
+const [cardPayment] = (await db.query("select principal_paid, interest_paid from public.debt_payments where notes='cuota 1'")).rows;
+assert.equal(Number(cardPayment.principal_paid),946.19);
+assert.equal(Number(cardPayment.interest_paid),120);
 const migration = (await fs.readFile(new URL('supabase/monthly-reports.sql', root),'utf8'))
   .replaceAll('clock_timestamp()', 'test_clock.now()')
   .replace('create extension if not exists pg_cron;', '-- pg_cron scheduler mocked; real SQL functions execute in Postgres.');

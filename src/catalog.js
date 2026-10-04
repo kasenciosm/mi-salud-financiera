@@ -10,13 +10,16 @@ export const categories = [
   { name: 'Educación', icon: 'graduation-cap', color: 'lavender', aliases: ['educacion', 'estudios', 'universidad', 'cursos'] },
   { name: 'Pago de deuda', icon: 'credit-card', color: 'lavender', aliases: ['pago de deuda', 'deuda', 'prestamo', 'tarjeta'] },
   { name: 'Ingresos', icon: 'wallet', color: 'mint', aliases: ['ingresos', 'ingreso', 'sueldo', 'salario', 'ventas', 'fuxion'] },
+  { name: 'Entidades', icon: 'bank', color: 'blue', aliases: ['entidades', 'tramites', 'impuestos', 'sunat', 'reniec', 'essalud', 'minsa'] },
 ];
-export const paymentMethods = ['Efectivo', 'BCP', 'Interbank', 'BBVA', 'Scotiabank', 'Banco de la Nación', 'BanBif', 'Yape', 'Plin', 'Otro'];
+export const paymentMethods = ['Efectivo', 'BCP', 'Interbank', 'BBVA', 'Scotiabank', 'Diners Club', 'Banco de la Nación', 'BanBif', 'Yape', 'Plin', 'Otro'];
 // Identificadores locales: ninguna consulta de movimientos se envía a terceros.
 export const merchants = [
   ['BCP', 'BCP', 'blue', ['bcp', 'banco de credito']], ['Interbank', 'ib', 'mint', ['interbank']],
   ['BBVA', 'BBVA', 'blue', ['bbva']], ['Scotiabank', 'S', 'rose', ['scotiabank']],
   ['Banco de la Nación', 'BN', 'rose', ['banco de la nacion']], ['BanBif', 'B', 'sky', ['banbif']],
+  ['Diners Club', 'D', 'blue', ['diners', 'diners club']], ['Caja Arequipa', 'CA', 'rose', ['caja arequipa']],
+  ['Caja Huancayo', 'CH', 'rose', ['caja huancayo']], ['Banco Pichincha', 'P', 'sand', ['pichincha']],
   ['Yape', 'Y', 'lavender', ['yape']], ['Plin', 'plin', 'sky', ['plin']],
   ['Falabella', 'f', 'mint', ['falabella']], ['Ripley', 'R', 'lavender', ['ripley']],
   ['Oechsle', 'O', 'rose', ['oechsle']], ['Plaza Vea', 'pv', 'sand', ['plaza vea', 'plazavea']],
@@ -28,6 +31,11 @@ export const merchants = [
   ['Pardos Chicken', 'P', 'sand', ['pardos chicken', 'pardos']], ['Norky’s', 'N', 'rose', ['norkys', 'norky s']],
   ['Bembos', 'B', 'sand', ['bembos']], ['KFC', 'KFC', 'rose', ['kfc']], ['Starbucks', 'S', 'mint', ['starbucks']],
   ['Cineplanet', 'CP', 'blue', ['cineplanet']], ['Cinemark', 'C', 'rose', ['cinemark']],
+  ['SUNAT', 'SUNAT', 'rose', ['sunat']], ['RENIEC', 'R', 'blue', ['reniec']],
+  ['EsSalud', 'E', 'mint', ['essalud', 'es salud']], ['MINSA', 'M', 'sky', ['minsa', 'ministerio de salud']],
+  ['SIS', 'SIS', 'blue', ['sis', 'seguro integral de salud']], ['Clínica Internacional', 'CI', 'blue', ['clinica internacional']],
+  ['Auna', 'A', 'rose', ['auna']], ['Clínica San Pablo', 'SP', 'sky', ['clinica san pablo', 'san pablo']],
+  ['Inkafarma', 'I', 'rose', ['inkafarma']], ['Mifarma', 'M', 'rose', ['mifarma']],
   ['Netflix', 'N', 'rose', ['netflix']], ['Spotify', 'S', 'mint', ['spotify']],
   ['Metropolitano', 'bus', 'sky', ['metropolitano']], ['Bus / combi', 'bus', 'sky', ['combi', 'bus', 'micro']],
   ['Taxi', 'car-taxi-front', 'sand', ['taxi']], ['Restaurante', 'utensils', 'sand', ['restaurante']],

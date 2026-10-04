@@ -134,17 +134,36 @@ export function normalizeDebt(form) {
   const originalAmount = Math.max(number(form.originalAmount), outstandingAmount);
   if (!text(form.creditor)) throw new Error("El acreedor es obligatorio.");
   if (originalAmount <= 0) throw new Error("El monto original debe ser mayor que cero.");
+  const debtType = form.debtType === "credit_card" ? "credit_card" : "other";
+  const installmentCount = debtType === "credit_card" ? Math.round(number(form.installmentCount)) : 0;
+  const annualRate = Math.max(number(form.annualRate), 0);
+  if (debtType === "credit_card" && (installmentCount < 1 || installmentCount > 120)) {
+    throw new Error("Elige entre 1 y 120 cuotas para la deuda de tarjeta.");
+  }
   const dueDay = number(form.dueDay);
   return {
     creditor: text(form.creditor),
+    debtType,
+    installmentCount,
+    installmentsPaid: Math.max(0, Math.round(number(form.installmentsPaid))),
     originalAmount,
     outstandingAmount,
     monthlyPayment: Math.max(number(form.monthlyPayment), 0),
-    annualRate: Math.max(number(form.annualRate), 0),
+    annualRate,
     dueDay: dueDay >= 1 && dueDay <= 31 ? Math.round(dueDay) : null,
     currency: currency(form.currency),
     status: outstandingAmount <= 0 ? "paid" : "active",
   };
+}
+
+export function calculateInstallment(amount, annualRate, count) {
+  const principal = Math.max(number(amount), 0);
+  const periods = Math.max(0, Math.round(number(count)));
+  if (!periods) return 0;
+  const monthlyRate = Math.max(number(annualRate), 0) / 1200;
+  if (!monthlyRate) return Math.round((principal / periods + Number.EPSILON) * 100) / 100;
+  const payment = principal * monthlyRate / (1 - (1 + monthlyRate) ** -periods);
+  return Math.round((payment + Number.EPSILON) * 100) / 100;
 }
 
 export function normalizeStatement(form) {

@@ -2,14 +2,14 @@
 @import "./design.css";
 
 @theme {
-  --color-canvas: light-dark(#f5f6f8,#15171b);
-  --color-ink: light-dark(#24272e,#f2f4f7);
-  --color-muted: light-dark(#697281,#adb4c0);
-  --color-line: light-dark(#e7eaf0,#323741);
-  --color-forest: light-dark(#577ddb,#91b0ff);
-  --color-forest-soft: light-dark(#496dc8,#a6bfff);
+  --color-canvas: light-dark(#f5f6f8,#08090a);
+  --color-ink: light-dark(#24272e,#ededed);
+  --color-muted: light-dark(#697281,#8b8d98);
+  --color-line: light-dark(#e7eaf0,#2e2e2e);
+  --color-forest: light-dark(#577ddb,#ededed);
+  --color-forest-soft: light-dark(#496dc8,#ffffff);
   --color-green: light-dark(#448c79,#79c6af);
-  --color-danger: light-dark(#b96b7b,#e5a5b0);
+  --color-danger: light-dark(#b96b7b,#f17a8a);
   --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -62,6 +62,33 @@ textarea:focus-visible {
 ::selection {
   background: color-mix(in srgb,var(--blue) 20%,transparent);
 }
+
+:root:not([data-theme="light"]):not([data-theme="system"]) {
+  color-scheme: dark;
+  --surface: #111111;
+  --surface-subtle: #171717;
+  --sidebar: #08090a;
+  --blue: #8ab4f8;
+  --mint: #63c7a5;
+  --rose: #f17a8a;
+  --lavender: #b9a0f2;
+  --sand: #dfba76;
+  --sky: #75bde8;
+  --neutral: #a0a0a0;
+  --button-text: #08090a;
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="system"] { color-scheme: light dark; }
+
+.identity.merchant-mark {
+  background: var(--brand-bg, var(--identity-color));
+  color: var(--brand-ink, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--brand-ink, #ffffff) 16%, transparent);
+  box-shadow: inset 0 0 0 1px #ffffff12, 0 1px 3px #00000020;
+}
+.identity.merchant-mark .small-mark { font-size: 9px; letter-spacing: -.35px; }
+.primary-button { background: light-dark(var(--color-forest), #ededed); color: light-dark(#ffffff, #08090a); }
 
 .loading-block {
   background: linear-gradient(90deg, #e7ece9 25%, #f5f7f6 50%, #e7ece9 75%);

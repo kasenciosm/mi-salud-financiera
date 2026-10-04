@@ -38,6 +38,9 @@ const debtFromDb = (row) => ({
   outstandingAmount: Number(row.outstanding_amount),
   monthlyPayment: Number(row.monthly_payment),
   annualRate: Number(row.annual_rate),
+  debtType: row.debt_type || "other",
+  installmentCount: Number(row.installment_count || 0),
+  installmentsPaid: Number(row.installments_paid || 0),
   dueDay: row.due_day,
   currency: row.currency,
   status: row.status,
@@ -48,6 +51,8 @@ const paymentFromDb = (row) => ({
   debtId: row.debt_id,
   paymentDate: row.payment_date,
   amount: Number(row.amount),
+  principalPaid: Number(row.principal_paid || 0),
+  interestPaid: Number(row.interest_paid || 0),
   notes: row.notes,
 });
 
@@ -84,6 +89,9 @@ function debtToDb(row) {
     outstanding_amount: row.outstandingAmount,
     monthly_payment: row.monthlyPayment,
     annual_rate: row.annualRate,
+    debt_type: row.debtType,
+    installment_count: row.installmentCount,
+    installments_paid: row.installmentsPaid,
     due_day: row.dueDay,
     currency: row.currency,
     status: row.status,

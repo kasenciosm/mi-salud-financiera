@@ -39,7 +39,7 @@ const actionByView = {
 export default function Dashboard({ user }) {
   const history = useMonthlyReports(user.id);
   const [category, setCategory] = useState('');
-  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('finance-theme') || 'system'; } catch { return 'system'; } });
+  const [theme, setTheme] = useState(() => { try { return localStorage.getItem('finance-theme') || 'dark'; } catch { return 'dark'; } });
   useEffect(() => { document.documentElement.dataset.theme = theme; try { localStorage.setItem('finance-theme',theme); } catch {} },[theme]);
   const [view, setView] = useState("summary");
   const [selectedMonth, setSelectedMonth] = useState(currentMonthInLima);
@@ -213,8 +213,9 @@ function DebtsView({ data, onEdit, onPay, onDelete }) {
                 <span>Original: {money(debt.originalAmount, debt.currency)}</span>
               </div>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 border-y border-line py-4 min-[380px]:grid-cols-3">
-                <SmallStat label="Cuota" value={money(debt.monthlyPayment, debt.currency)} dark />
+              <div className={debt.debtType === 'credit_card' ? "mt-5 grid grid-cols-1 gap-3 border-y border-line py-4 min-[380px]:grid-cols-2 sm:grid-cols-4" : "mt-5 grid grid-cols-1 gap-3 border-y border-line py-4 min-[380px]:grid-cols-3"}>
+                {debt.debtType === 'credit_card' && <SmallStat label="Cuotas pagadas" value={`${debt.installmentsPaid} de ${debt.installmentCount}`} dark />}
+                <SmallStat label={debt.debtType === 'credit_card' ? "Cuota estimada" : "Cuota"} value={money(debt.monthlyPayment, debt.currency)} dark />
                 <SmallStat label="Tasa anual" value={`${debt.annualRate}%`} dark />
                 <SmallStat label="Vence" value={debt.dueDay ? `Día ${debt.dueDay}` : "—"} dark />
               </div>
@@ -252,6 +253,7 @@ function DebtsView({ data, onEdit, onPay, onDelete }) {
                       <p className="mt-1 break-words text-[11px] text-muted">
                         {shortDate(payment.paymentDate)}{payment.notes ? ` · ${payment.notes}` : ""}
                       </p>
+                      {debt?.debtType === 'credit_card' && (payment.principalPaid > 0 || payment.interestPaid > 0) && <p className="mt-1 text-[11px] text-muted">Capital: {money(payment.principalPaid, debt.currency)} · Interés: {money(payment.interestPaid, debt.currency)}</p>}
                     </div>
                     <strong className="shrink-0 text-sm text-danger">−{money(payment.amount, debt?.currency || "PEN")}</strong>
                   </div>

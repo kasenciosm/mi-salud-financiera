@@ -26,6 +26,9 @@ create table if not exists public.debts (
   outstanding_amount numeric(14,2) not null check (outstanding_amount >= 0),
   monthly_payment numeric(14,2) not null default 0 check (monthly_payment >= 0),
   annual_rate numeric(8,4) not null default 0 check (annual_rate >= 0),
+  debt_type text not null default 'other' check (debt_type in ('other', 'credit_card')),
+  installment_count smallint not null default 0 check (installment_count between 0 and 120),
+  installments_paid smallint not null default 0 check (installments_paid between 0 and 120),
   due_day smallint check (due_day between 1 and 31),
   currency text not null default 'PEN' check (currency in ('PEN', 'USD')),
   status text not null default 'active' check (status in ('active', 'paid')),
@@ -40,6 +43,8 @@ create table if not exists public.debt_payments (
   transaction_id uuid references public.transactions(id) on delete set null,
   payment_date date not null,
   amount numeric(14,2) not null check (amount > 0),
+  principal_paid numeric(14,2) not null default 0 check (principal_paid >= 0),
+  interest_paid numeric(14,2) not null default 0 check (interest_paid >= 0),
   notes text not null default '',
   created_at timestamptz not null default now()
 );
@@ -115,6 +120,8 @@ declare
   v_transaction_id uuid;
   v_payment_id uuid;
   v_new_balance numeric;
+  v_interest numeric := 0;
+  v_principal numeric;
 begin
   if v_user_id is null then raise exception 'Debes iniciar sesión.'; end if;
   if p_amount is null or p_amount <= 0 then raise exception 'El pago debe ser mayor que cero.'; end if;
@@ -127,7 +134,16 @@ begin
   if not found then raise exception 'Deuda no encontrada.'; end if;
   if v_debt.status = 'paid' or v_debt.outstanding_amount <= 0 then raise exception 'La deuda ya está pagada.'; end if;
 
-  v_new_balance := greatest(v_debt.outstanding_amount - p_amount, 0);
+  if v_debt.debt_type = 'credit_card' then
+    v_interest := round(v_debt.outstanding_amount * v_debt.annual_rate / 1200, 2);
+    if p_amount < v_debt.monthly_payment and p_amount < v_debt.outstanding_amount + v_interest then
+      raise exception 'Para registrar una cuota, ingresa al menos % %.', v_debt.monthly_payment, v_debt.currency;
+    end if;
+    v_principal := least(v_debt.outstanding_amount, greatest(p_amount - v_interest, 0));
+  else
+    v_principal := least(v_debt.outstanding_amount, p_amount);
+  end if;
+  v_new_balance := greatest(v_debt.outstanding_amount - v_principal, 0);
 
   insert into public.transactions (
     user_id, date, type, category, description, amount, currency, exchange_rate, source
@@ -137,13 +153,14 @@ begin
   ) returning id into v_transaction_id;
 
   insert into public.debt_payments (
-    user_id, debt_id, transaction_id, payment_date, amount, notes
+    user_id, debt_id, transaction_id, payment_date, amount, principal_paid, interest_paid, notes
   ) values (
-    v_user_id, p_debt_id, v_transaction_id, p_payment_date, p_amount, coalesce(p_notes, '')
+    v_user_id, p_debt_id, v_transaction_id, p_payment_date, p_amount, v_principal, v_interest, coalesce(p_notes, '')
   ) returning id into v_payment_id;
 
   update public.debts
   set outstanding_amount = v_new_balance,
+      installments_paid = case when v_debt.debt_type = 'credit_card' then least(installment_count, installments_paid + 1) else installments_paid end,
       status = case when v_new_balance = 0 then 'paid' else 'active' end,
       updated_at = now()
   where id = p_debt_id and user_id = v_user_id;

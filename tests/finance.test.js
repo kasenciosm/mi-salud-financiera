@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   calculateSummary,
+  calculateInstallment,
   normalizeDebt,
   normalizePayment,
   normalizeStatement,
@@ -53,6 +54,17 @@ test("normaliza deudas y las marca pagadas con saldo cero", () => {
   const row = normalizeDebt({ creditor: "Banco", originalAmount: "1000", outstandingAmount: "0", monthlyPayment: "200", annualRate: "12", dueDay: "15", currency: "PEN" });
   assert.equal(row.status, "paid");
   assert.equal(row.dueDay, 15);
+});
+
+test("estima cuotas de tarjeta con tasa anual, permite Diners y conserva el progreso", () => {
+  assert.equal(calculateInstallment(12000, 12, 12), 1066.19);
+  assert.equal(calculateInstallment(12000, 0, 12), 1000);
+  const debt = normalizeDebt({ creditor: "Diners Club", debtType: "credit_card", originalAmount: "12000", outstandingAmount: "11053.81", installmentCount: "12", installmentsPaid: "1", annualRate: "12", monthlyPayment: "1066.19", currency: "PEN" });
+  assert.equal(debt.creditor, "Diners Club");
+  assert.equal(debt.debtType, "credit_card");
+  assert.equal(debt.installmentsPaid, 1);
+  assert.equal(debt.status, "active");
+  assert.throws(() => normalizeDebt({ creditor: "Diners Club", debtType: "credit_card", originalAmount: "12000", installmentCount: "0" }), /1 y 120 cuotas/);
 });
 
 test("normaliza estados de cuenta y pagos", () => {
