@@ -37,13 +37,14 @@ export const merchants = [
   ['SUNAT', 'SUNAT', 'rose', ['sunat']], ['RENIEC', 'R', 'blue', ['reniec']],
   ['EsSalud', 'E', 'mint', ['essalud', 'es salud']], ['MINSA', 'M', 'sky', ['minsa', 'ministerio de salud']],
   ['SIS', 'SIS', 'blue', ['sis', 'seguro integral de salud']], ['Clínica Internacional', 'CI', 'blue', ['clinica internacional']],
+  ['Policlínico Peruano Japonés', 'hospital', 'sky', ['policlinico peruano japones', 'peruano japones']],
   ['Auna', 'A', 'rose', ['auna']], ['Clínica San Pablo', 'SP', 'sky', ['clinica san pablo', 'san pablo']],
   ['Inkafarma', 'I', 'rose', ['inkafarma']], ['Mifarma', 'M', 'rose', ['mifarma']],
   ['Netflix', 'N', 'rose', ['netflix']], ['Spotify', 'S', 'mint', ['spotify']],
   ['Metropolitano', 'bus', 'sky', ['metropolitano']], ['Bus / combi', 'bus', 'sky', ['combi', 'bus', 'micro']],
   ['Taxi', 'car-taxi-front', 'sand', ['taxi']], ['Restaurante', 'utensils', 'sand', ['restaurante']],
   ['Cafetería', 'coffee', 'sand', ['cafeteria']], ['Cine', 'clapperboard', 'blue', ['cine']],
-  ['Grupo Coril', 'C', 'blue', ['grupo coril', 'coril']],
+  ['Grupo Coril', 'C', 'blue', ['grupo coril', 'coril']], ['Clínica', 'hospital', 'sky', ['clinica', 'policlinico', 'hospital']],
 ].map(([name, mark, color, aliases]) => ({ name, mark, color, aliases }));
 
 export const normalizeLabel = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();

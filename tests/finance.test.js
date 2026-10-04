@@ -8,7 +8,7 @@ import {
   normalizeStatement,
   normalizeTransaction,
 } from "../src/finance.js";
-import { categoryIdentity } from "../src/catalog.js";
+import { categoryIdentity, merchantIdentity } from "../src/catalog.js";
 
 const data = (transactions = [], debts = [], statements = []) => ({
   transactions,
@@ -63,6 +63,8 @@ test("asigna iconos específicos a libros, medicamentos y clínicas", () => {
   assert.equal(categoryIdentity("Libros").icon, "book-open");
   assert.equal(categoryIdentity("Medicina").icon, "pill");
   assert.equal(categoryIdentity("Clínica").icon, "hospital");
+  assert.equal(merchantIdentity("Policlínico Peruano Japonés").mark, "hospital");
+  assert.equal(merchantIdentity("Clínica del usuario").mark, "hospital");
 });
 
 test("normaliza los datos editables de un movimiento", () => {
