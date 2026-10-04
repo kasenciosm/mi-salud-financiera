@@ -63,6 +63,9 @@ export function calculateSummary(data, selectedMonth) {
   const debt = data.debts
     .filter((item) => item.status === "active")
     .reduce((sum, item) => sum + inPen(item.outstandingAmount, item.currency), 0);
+  const capitalDebt = data.debts
+    .filter((item) => item.status === "active" && item.debtType !== "credit_card")
+    .reduce((sum, item) => sum + inPen(item.outstandingAmount, item.currency), 0);
   const monthlyDebtPayment = data.debts
     .filter((item) => item.status === "active")
     .reduce((sum, item) => sum + inPen(item.monthlyPayment, item.currency), 0);
@@ -82,7 +85,9 @@ export function calculateSummary(data, selectedMonth) {
   const score = income > 0
     ? Math.round(Math.min(100, Math.max(0, 55 + availableRate * 0.4 - debtLoad * 0.35)))
     : 0;
-  const netWorth = accumulatedBalance + investments - debt;
+  // Credit-card purchases use the issuer's credit, not personal cash capital.
+  // The liability stays visible in debt reports; capital changes as payments are made.
+  const netWorth = accumulatedBalance + investments - capitalDebt;
 
   return {
     income,

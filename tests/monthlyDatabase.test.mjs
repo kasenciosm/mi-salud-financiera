@@ -43,13 +43,15 @@ insert into public.debts(id,user_id,creditor,original_amount,outstanding_amount,
 values('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','${w}','Diners Club',12000,12000,1066.19,12,'credit_card',12,'PEN');
 insert into public.debts(id,user_id,creditor,original_amount,outstanding_amount,monthly_payment,currency) values
 ('${d}','${u}','Banco',2000,1000,100,'USD');
+insert into public.debts(id,user_id,creditor,original_amount,outstanding_amount,monthly_payment,annual_rate,debt_type,installment_count,currency)
+values('cccccccc-cccc-cccc-cccc-cccccccccccc','${u}','Diners Club',2000,2000,400,12,'credit_card',6,'PEN');
 insert into public.investment_statements(user_id,statement_date,market_value,cash_balance) values
 ('${u}','2026-08-20',1000,100),('${u}','2026-09-10',99999,0);
 `);
 await db.exec(`set role authenticated; set test.uid='${w}';`);
 await assert.rejects(db.exec("select public.register_debt_payment('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',100,'2026-08-05','pago parcial')"), /ingresa al menos/);
 await db.exec("select public.register_debt_payment('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',1066.19,'2026-08-05','cuota 1'); reset role;");
-const [cardBalance] = (await db.query("select outstanding_amount, installments_paid, status from public.debts where creditor='Diners Club'")).rows;
+const [cardBalance] = (await db.query(`select outstanding_amount, installments_paid, status from public.debts where creditor='Diners Club' and user_id='${w}'`)).rows;
 assert.equal(Number(cardBalance.outstanding_amount),11053.81);
 assert.equal(cardBalance.installments_paid,1);
 assert.equal(cardBalance.status,'active');
@@ -60,6 +62,9 @@ const migration = (await fs.readFile(new URL('supabase/monthly-reports.sql', roo
   .replaceAll('clock_timestamp()', 'test_clock.now()')
   .replace('create extension if not exists pg_cron;', '-- pg_cron scheduler mocked; real SQL functions execute in Postgres.');
 await db.exec(migration);
+const cardCapitalMigration = await fs.readFile(new URL('supabase/tarjetas-no-afectan-capital.sql', root), 'utf8');
+await db.exec(cardCapitalMigration);
+await db.exec(cardCapitalMigration);
 const query = async sql => (await db.query(sql)).rows;
 assert.equal((await query("select merchant, payment_method from public.transactions limit 1"))[0].merchant,'');
 const check = async (name, fn) => { await fn(); console.log(`PASS ${name}`); };
@@ -77,7 +82,7 @@ await check('Cierre retrasado conserva deuda e inversiones al fin de agosto',asy
   const [r]=await query(`select * from public.monthly_reports where user_id='${u}'`);
   assert.equal(Number(r.income),1380); assert.equal(Number(r.expenses),1200);
   assert.equal(Number(r.cash_flow),180); assert.equal(Number(r.accumulated_balance),180);
-  assert.equal(Number(r.debt),3750); assert.equal(Number(r.investments),1100);
+  assert.equal(Number(r.debt),5750); assert.equal(Number(r.investments),1100);
   assert.equal(Number(r.net_worth),-2470);
 });
 await check('Reejecutar no duplica ni sobrescribe reportes',async()=>{
@@ -101,7 +106,7 @@ await check('Recupera meses sin actividad y no crea reportes futuros',async()=>{
   const rows=await query(`select * from public.monthly_reports where user_id='${u}' order by month`);
   assert.equal(rows.length,4); assert.equal(Number(rows[3].income),0);
   assert.equal(Number(rows[3].cash_flow),0); assert.equal(rows[3].savings_rate,null);
-  assert.equal(Number(rows[3].debt),1875);
+  assert.equal(Number(rows[3].debt),3875);
 });
 await check('Deuda histórica previa a la activación queda no disponible',async()=>{
   await db.exec(`insert into auth.users values('33333333-3333-3333-3333-333333333333','2026-08-01'); update finance_private.settings set enabled_at='2026-10-15'; select finance_private.close_months();`);
